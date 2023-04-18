@@ -1,0 +1,50 @@
+name: PR checks
+
+on:
+  workflow_call:
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    name: Validate all commits
+    steps:
+      - name: Validate commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MESSAGE_PATTERN: '(build|chore|ci|docs|feat|fix|perf|refactor|style|test)(\(DO-\d+( DO-\d+)*\))?: [a-z]+'
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -e
+
+          check_message() {
+            msg="$1"
+            printf "\t%s " "$msg"
+
+            if echo $msg | grep -qE "$MESSAGE_PATTERN";
+            then
+                printf "✅"
+            else
+                printf "❌"
+                exit_code=1
+            fi
+            printf "\n"
+          }
+
+          echo "Checking title:"
+          check_message "$PR_TITLE"
+
+          echo ""
+
+          echo "Checking commits:"
+          commits=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPOSITORY/pulls/$PR_NUMBER/commits | jq -r '.[].commit.message')
+
+          while read msg; do
+            check_message "$msg"
+          done <<< "$commits"
+
+          exit $exit_code
