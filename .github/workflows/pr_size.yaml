@@ -1,0 +1,61 @@
+name: PR checks
+
+on:
+  workflow_call:
+
+jobs:
+  size-check:
+    name: Check PR size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add PR size label
+        uses: WizardOhio24/label-pr-size-action@v1.0.1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          size-label-color: '10, pr-size/XS, 1d76db | 100, pr-size/S, 1d76db | 500, pr-size/M, 1d76db | 1000, pr-size/L, 1d76db | 100000, pr-size/XL, 1d76db'
+
+      - name: Verify size label is present
+        uses: danielchabr/pr-labels-checker@v3.1
+        id: check-size
+        continue-on-error: true
+        with:
+          hasSome: pr-size/XS,pr-size/S,pr-size/M
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find Comment
+        uses: peter-evans/find-comment@v2
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: <!-- size-warning -->
+
+      - name: Debug
+        run: |
+          echo "Check size passed: ${{ steps.check-size.outputs.passed }}"
+          echo "Comment ID: ${{ steps.find-comment.outputs.comment-id }}"
+
+      - name: Comment PR
+        uses: peter-evans/create-or-update-comment@v2.1.0
+        if: (! steps.check-size.outputs.passed) && steps.find-comment.outputs.comment-id == 0
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            <!-- size-warning -->
+            This PR exceeds the recommended size of 500 lines.
+
+            Please consider split it into multiple PRs and make sure you are NOT
+            addressing multiple issues with one PR.
+
+            Note this PR might be rejected due to its size.
+
+      - name: Delete comment
+        uses: actions/github-script@v6
+        if: steps.check-size.outputs.passed && steps.find-comment.outputs.comment-id != 0
+        with:
+          script: |
+            const result = github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ steps.find-comment.outputs.comment-id }}
+            });
+            console.log(result)
