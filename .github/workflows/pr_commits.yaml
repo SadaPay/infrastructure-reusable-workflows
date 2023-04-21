@@ -49,8 +49,8 @@ jobs:
 
           if [ -n "$exit_code" ]; then
             echo "[ERROR] Please follow the conventionalcommits.org convention for the commit messages."
-            echo "[ERROR] The format should be: <type>(<ticket numbers separated by space>): <description>"
-            echo "[ERROR] In particular messages should match the following reg-ex: $PATTERN"
+            echo "[ERROR] The format should be: <type>(<ticket numbers separated by space>): <description starting with a lowercase>"
+            echo "[ERROR] In particular messages should match the following reg-ex: $MESSAGE_PATTERN"
           fi
 
           exit $exit_code
