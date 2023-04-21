@@ -11,7 +11,7 @@ jobs:
       - name: Validate commits
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MESSAGE_PATTERN: '(build|chore|ci|docs|feat|fix|perf|refactor|style|test)(\([A-Z]+-\d+( [A-Z]+-\d+)*\))?: [a-z]+'
+          MESSAGE_PATTERN: '(build|chore|ci|docs|feat|fix|perf|refactor|style|test)\([A-Z]+-[0-9]+( [A-Z]+-[0-9]+)*\): [a-z].+'
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           REPOSITORY: ${{ github.repository }}
@@ -46,5 +46,11 @@ jobs:
           while read msg; do
             check_message "$msg"
           done <<< "$commits"
+
+          if [ -n "$exit_code" ]; then
+            echo "[ERROR] Please follow the conventionalcommits.org convention for the commit messages."
+            echo "[ERROR] The format should be: <type>(<ticket numbers separated by space>): <description>"
+            echo "[ERROR] In particular messages should match the following reg-ex: $PATTERN"
+          fi
 
           exit $exit_code
