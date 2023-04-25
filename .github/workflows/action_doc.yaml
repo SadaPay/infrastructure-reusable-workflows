@@ -1,0 +1,29 @@
+name: Generate Github Action docs
+
+on:
+  workflow_call:
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target'}}
+        uses: actions/checkout@v3.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - if: ${{ github.event_name != 'pull_request' && github.event_name != 'pull_request_target'}}
+        uses: actions/checkout@v3.1.0
+
+      - name: Update README
+        uses: npalm/action-docs-action@v1.4.0
+
+      - name: Commit
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "README.md"
+          author_name: GitHub
+          author_email: noreply@github.com
+          message: 'doc: generate updated documentation'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Leave this line unchanged
