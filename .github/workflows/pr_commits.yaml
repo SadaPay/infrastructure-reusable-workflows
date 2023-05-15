@@ -41,7 +41,7 @@ jobs:
           commits=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/$REPOSITORY/pulls/$PR_NUMBER/commits | jq -r '.[].commit.message')
+            /repos/$REPOSITORY/pulls/$PR_NUMBER/commits | jq -r '.[].commit.message' | head -n 1)
 
           while read msg; do
             check_message "$msg"
