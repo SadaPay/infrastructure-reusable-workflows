@@ -7,6 +7,10 @@ on:
         description: 'List of space separated dirs to create before running the linter'
         required: false
         type: string
+      terrascan-config:
+        description: 'Filename for terrascan configuration (ex: terrascan.toml)'
+        required: false
+        type: string
 
 jobs:
   lint:
@@ -40,3 +44,4 @@ jobs:
           VALIDATE_NATURAL_LANGUAGE: true
           VALIDATE_TERRAFORM_TFLINT: true
           VALIDATE_YAML: true
+          TERRAFORM_TERRASCAN_CONFIG_FILE: ${{inputs.terrascan-config}}
