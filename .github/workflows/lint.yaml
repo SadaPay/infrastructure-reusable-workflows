@@ -21,7 +21,9 @@ jobs:
 
       - name: Create required dirs
         if: ${{ inputs.required-dirs }}
-        run: mkdir -p ${{ inputs.required-dirs }}
+        run: |
+          mkdir -p ${{ inputs.required-dirs }}
+          ls -lsa ${{ inputs.required-dirs }}
 
       - name: Lint Code Base
         uses: super-linter/super-linter/slim@v5
