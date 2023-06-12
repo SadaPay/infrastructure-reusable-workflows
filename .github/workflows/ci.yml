@@ -1,0 +1,209 @@
+name: CI
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      terraform-version:
+        required: true
+        type: string
+        default: "1.1.5"
+    secrets:
+      DT_TF_AWS_AZ:
+        required: true
+      DT_TF_AWS_CONFIG:
+        required: true
+      DT_TF_AWS_DLM:
+        required: true
+      DT_TF_AWS_DNS:
+        required: true
+      DT_TF_AWS_DYNATRACE_ACTIVEGATE:
+        required: true
+      DT_TF_AWS_ELK:
+        required: true
+      DT_TF_AWS_EXABEAM_BUCKET:
+        required: true
+      DT_TF_AWS_GITHUB_SG:
+        required: true
+      DT_TF_AWS_IRIS_NAT:
+        required: true
+      DT_TF_AWS_OPENVPN:
+        required: true
+      DT_TF_AWS_PRIVATE_SUBNET:
+        required: true
+      DT_TF_AWS_PUBLIC_SUBNET:
+        required: true
+      DT_TF_AWS_RDS_AURORA:
+        required: true
+      DT_TF_AWS_ROUTE_53_QUERY_LOG:
+        required: true
+      DT_TF_AWS_S3:
+        required: true
+      DT_TF_AWS_SECURITY_HUB:
+        required: true
+      DT_TF_AWS_SUBNET:
+        required: true
+      DT_TF_AWS_SYS_MANAGER:
+        required: true
+      DT_TF_AWS_TEST_EC2:
+        required: true
+      DT_TF_AWS_VPC:
+        required: true
+      STAGING_TERRAFORM_AWS_ACCESS_KEY_ID:
+        required: true
+      STAGING_TERRAFORM_AWS_SECRET_ACCESS_KEY:
+        required: true
+      STAGING_AURORA_DB_MASTER_PASSWORD:
+        required: true
+      DYNATRACE_PAAS_TOKEN_MIN_STAGING:
+        required: true
+      STAGING_DYNATRACE_TOKEN:
+        required: true
+      FALCON_CLIENT_ID:
+        required: true
+      FALCON_CLIENT_SECRET:
+        required: true
+      STAGING_REDIS_CLUSTER_ADMIN_PASSWORD:
+        required: true
+      STAGING_REDIS_CLUSTER_AUTHX_PASSWORD:
+        required: true
+      STAGING_REDIS_CLUSTER_DEFAULT_PASSWORD:
+        required: true
+      STAGING_REDIS_CLUSTER_LIMIT_PASSWORD:
+        required: true
+
+jobs:
+  terraform:
+    runs-on: ${{ inputs.working-directory == 'production' && fromJSON('["self-hosted", "production"]') || fromJSON('["self-hosted", "staging"]') }}
+    steps:
+      - uses: SadaPay/action-checkout@821dfb79dd4838e7ab3a0ad778de7121a10e8164
+
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+
+      - name: Check Formatting
+        run: terraform fmt -check -recursive
+
+      - name: Checkout submodules
+        env:
+          DT_TF_AWS_AZ: ${{ secrets.DT_TF_AWS_AZ }}
+          DT_TF_AWS_CONFIG: ${{ secrets.DT_TF_AWS_CONFIG }}
+          DT_TF_AWS_DLM: ${{ secrets.DT_TF_AWS_DLM }}
+          DT_TF_AWS_DNS: ${{ secrets.DT_TF_AWS_DNS }}
+          DT_TF_AWS_DYNATRACE_ACTIVEGATE: ${{ secrets.DT_TF_AWS_DYNATRACE_ACTIVEGATE }}
+          DT_TF_AWS_ELK: ${{ secrets.DT_TF_AWS_ELK }}
+          DT_TF_AWS_EXABEAM_BUCKET: ${{ secrets.DT_TF_AWS_EXABEAM_BUCKET }}
+          DT_TF_AWS_GITHUB_SG: ${{ secrets.DT_TF_AWS_GITHUB_SG }}
+          DT_TF_AWS_IRIS_NAT: ${{ secrets.DT_TF_AWS_IRIS_NAT }}
+          DT_TF_AWS_OPENVPN: ${{ secrets.DT_TF_AWS_OPENVPN }}
+          DT_TF_AWS_PRIVATE_SUBNET: ${{ secrets.DT_TF_AWS_PRIVATE_SUBNET }}
+          DT_TF_AWS_PUBLIC_SUBNET: ${{ secrets.DT_TF_AWS_PUBLIC_SUBNET }}
+          DT_TF_AWS_RDS_AURORA: ${{ secrets.DT_TF_AWS_RDS_AURORA }}
+          DT_TF_AWS_ROUTE_53_QUERY_LOG: ${{ secrets.DT_TF_AWS_ROUTE_53_QUERY_LOG }}
+          DT_TF_AWS_S3: ${{ secrets.DT_TF_AWS_S3 }}
+          DT_TF_AWS_SECURITY_HUB: ${{ secrets.DT_TF_AWS_SECURITY_HUB }}
+          DT_TF_AWS_SUBNET: ${{ secrets.DT_TF_AWS_SUBNET }}
+          DT_TF_AWS_SYS_MANAGER: ${{ secrets.DT_TF_AWS_SYS_MANAGER }}
+          DT_TF_AWS_TEST_EC2: ${{ secrets.DT_TF_AWS_TEST_EC2 }}
+          DT_TF_AWS_TRANSIT_GATEWAY_CONNECTION: ${{ secrets.DT_TF_AWS_TRANSIT_GATEWAY_CONNECTION }}
+          DT_TF_AWS_VPC: ${{ secrets.DT_TF_AWS_VPC }}
+        working-directory: ${{ github.workspace }}
+        run: scripts/submodules_checkout.sh
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.STAGING_TERRAFORM_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STAGING_TERRAFORM_AWS_SECRET_ACCESS_KEY }}
+          aws-region: me-south-1
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform init
+
+      - name: Terraform validation
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform validate
+
+      - name: Checkout configuration files
+        uses: actions/checkout@v3
+        with:
+          repository: SadaPay/infrastructure-reusable-workflows
+          path: reusable-workflow-configs
+
+      - name: Test LS
+        run: ls -al reusable-workflow-configs
+
+      - name: Install Aqua 
+        uses: aquaproj/aqua-installer@v2.1.1
+        with:
+          aqua_version: v2.5.1
+        env:
+          AQUA_CONFIG: ./reusable-workflow-configs/aqua.yaml
+      
+      - name: Install tfcmt via aqua
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: aqua i
+
+      - name: Terraform Plan
+        working-directory: ${{ inputs.working-directory }}
+        env:
+          TF_VAR_db_master_password: ${{ secrets.STAGING_AURORA_DB_MASTER_PASSWORD }}
+          TF_VAR_dynatrace_paas_token_oneagent: ${{ secrets.DYNATRACE_PAAS_TOKEN_MIN_STAGING }}
+          TF_VAR_dynatrace_paas_token: ${{ secrets.STAGING_DYNATRACE_TOKEN }}
+          TF_VAR_falcon_client_id: ${{ secrets.FALCON_CLIENT_ID }}
+          TF_VAR_falcon_client_secret: ${{ secrets.FALCON_CLIENT_SECRET }}
+          TF_VAR_redis_cluster_admin_password: ${{ secrets.STAGING_REDIS_CLUSTER_ADMIN_PASSWORD }}
+          TF_VAR_redis_cluster_authx_password: ${{ secrets.STAGING_REDIS_CLUSTER_AUTHX_PASSWORD }}
+          TF_VAR_redis_cluster_default_password: ${{ secrets.STAGING_REDIS_CLUSTER_DEFAULT_PASSWORD }}
+          TF_VAR_redis_cluster_rate_limit_password: ${{ secrets.STAGING_REDIS_CLUSTER_LIMIT_PASSWORD }}
+        run: |
+          tfcmt plan -patch -- terraform plan -no-color
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v2
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost diff
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          terraform show -no-color -json output > output.json
+          infracost diff --path=output.json --format=json --out-file=/tmp/infracost_${{ inputs.working-directory }}.json --project-name ${{ inputs.working-directory }}
+
+      - name: Post Infracost comment
+        run: |
+          infracost comment github \
+            --path=/tmp/${{ inputs.working-directory }}.json \
+            --repo=$GITHUB_REPOSITORY \
+            --github-token=${{ github.token }} \
+            --pull-request=${{ github.event.pull_request.number }} \
+            --tag=infracost-${{ inputs.working-directory }} \
+            --behavior=update
+
+  tfsec:
+    name:  runner / tfsec
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repo
+        uses: actions/checkout@v3.5.2
+
+      - name: Run tfsec with reviewdog output on the PR
+        uses: reviewdog/action-tfsec@master
+        with:
+          github_token: ${{ secrets.github_token }}
+          level: info
+          reporter: github-pr-check
+          fail_on_error: true
+          flags: -tee
+
+      - name: tfsec commenter
+        uses: tfsec/tfsec-pr-commenter-action@main
+        with:
+          tfsec_args: --force-all-dirs
+          github_token: ${{ secrets.github_token }}
