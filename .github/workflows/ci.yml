@@ -145,6 +145,7 @@ jobs:
       - name: Install tfcmt via aqua
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AQUA_CONFIG: ./reusable-workflow-configs/aqua.yaml
         run: aqua i
 
       - name: Terraform Plan
@@ -159,6 +160,7 @@ jobs:
           TF_VAR_redis_cluster_authx_password: ${{ secrets.STAGING_REDIS_CLUSTER_AUTHX_PASSWORD }}
           TF_VAR_redis_cluster_default_password: ${{ secrets.STAGING_REDIS_CLUSTER_DEFAULT_PASSWORD }}
           TF_VAR_redis_cluster_rate_limit_password: ${{ secrets.STAGING_REDIS_CLUSTER_LIMIT_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tfcmt plan -patch -- terraform plan -no-color
 
