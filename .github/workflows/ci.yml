@@ -140,13 +140,8 @@ jobs:
         with:
           aqua_version: v2.5.1
         env:
-          AQUA_CONFIG: ./reusable-workflow-configs/aqua.yaml
-      
-      - name: Install tfcmt via aqua
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: ./reusable-workflow-configs/
-        run: aqua i
+          AQUA_CONFIG: aqua.yaml
+          working_directory: ./reusable-workflow-configs/
 
       - name: Terraform Plan
         working-directory: ${{ inputs.working-directory }}
