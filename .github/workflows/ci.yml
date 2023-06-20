@@ -133,9 +133,7 @@ jobs:
         with:
           repository: SadaPay/infrastructure-reusable-workflows
           path: reusable-workflow-configs
-
-      - name: Test LS
-        run: ls -al reusable-workflow-configs
+          ref: '4bb18b6c6804d6e31f70c2331b506236c38b746d'
 
       - name: Install Aqua 
         uses: aquaproj/aqua-installer@v2.1.1
