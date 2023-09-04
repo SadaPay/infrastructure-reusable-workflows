@@ -1,0 +1,37 @@
+on:
+  workflow_call:
+    inputs:
+      repository_path:
+        required: true
+        type: string
+      date_range:
+        required: false
+        type: string
+        default: "1 months ago"
+
+jobs:
+  issue-metrics-report: 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get dates for last two month
+        shell: bash
+        run: |
+          # Calculate the start day
+          START_DATE=$(date -d '${{ inputs.date_range }}' +%Y-%m-01)
+  
+          # Calculate today's date
+          TODAY=$(date +%Y-%m-%d)
+  
+          # Set an environment variable with the date range
+          echo "$START_DATE..$TODAY"
+          echo "DATE_RANGE=$START_DATE..$TODAY" >> "$GITHUB_ENV"
+  
+      - name: Run issue-metrics tool
+        id: issue-metrics
+        uses: github/issue-metrics@v2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEARCH_QUERY: 'repo:${{ inputs.repository_path }} is:pr created:${{ env.DATE_RANGE }}'
+  
+      - name: Print output to job summary 
+        run: cat ./issue_metrics.md >> $GITHUB_STEP_SUMMARY
