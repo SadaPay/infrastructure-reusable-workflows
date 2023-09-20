@@ -1,0 +1,112 @@
+name: Helm chart CI
+
+on:
+  workflow_call:
+    inputs:
+      aws-access-key-id:
+        type: string
+        description: AWS access key ID to perform the helm login (if empty no login will be performed)
+        required: false
+        default: ""
+      aws-region:
+        type: string
+        description: AWS region where the ECR repo is
+        required: false
+        default: me-south-1
+      aws-secret-access-key:
+        type: string
+        description: AWS secret access key to perform the helm login (if empty no login will be performed)
+        required: false
+        default: ""
+      chart-path:
+        type: string
+        description: Path of the helm chart
+        required: false
+        default: ./
+      service-name:
+        type: string
+        description: Defining service-name for charts
+        required: false
+        default: ${{ github.event.repository.name }}
+      values-staging:
+        type: string
+        description: Helm values for staging
+        required: false
+        default: values-staging.yaml
+      values-production:
+        type: string
+        description: Helm values for production
+        required: false
+        default: values-production.yaml
+      validate-template:
+        type: boolean
+        description: Flag to enable helm template validation
+        required: false
+        default: true
+      unit-test:
+        type: boolean
+        description: Flag to run unit tests
+        required: false
+        default: true
+    secrets:
+      github-token:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Lint chart
+        working-directory: ${{ inputs.chart-path }}
+        run: helm lint .
+
+      - name: Configure AWS Credentials
+        if: ${{ inputs.aws-access-key-id && inputs.aws-secret-access-key }}
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ inputs.aws-access-key-id }}
+          aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login to ECR
+        if: ${{ inputs.aws-access-key-id && inputs.aws-secret-access-key }}
+        uses: aws-actions/amazon-ecr-login@v1.5.3
+
+      - name: Setup yq
+        uses: SadaPay/action-setup-yq@06b434c1df254fd8f1f5555ef4d9038b5b72b023
+
+      - name: Build dependencies
+        working-directory: ${{ inputs.chart-path }}
+        run: |
+          dependencies=$(yq '.dependencies[] | [.name, .repository] | @csv' Chart.yaml)
+          for line in $dependencies; do
+            IFS=',' read name repo <<< "${line}"
+            helm repo add $name $repo
+          done
+          helm dependency build
+
+      - name: Generate Helm Template Staging
+        run: |
+          helm template ${{inputs.service-name}} ${{inputs.chart-path}} -f ${{ inputs.values-staging }} --output-dir .build/staging
+          find .build/staging/ -type f | grep ".yaml" | xargs cat
+
+      - name: Generate Helm Template Production
+        run: |
+          helm template ${{inputs.service-name}} ${{inputs.chart-path}} -f ${{ inputs.values-production }} --output-dir .build/production
+          find .build/production/ -type f | grep ".yaml" | xargs cat
+
+      - name: Validate generated manifests
+        if: ${{ inputs.validate-template }}
+        uses: brpaz/gh-action-kubeval@f2c5188878ff6e53ad0e9c5a7e1b2a24bf4076bf
+        with:
+          files: .build/staging,.build/production
+          ignore_missing_schemas: true
+          github_token: ${{ secrets.github-token }}
+
+      - name: Run Helm unittest
+        if: ${{ inputs.unit-test }}
+        uses: d3adb5/helm-unittest-action@v2
