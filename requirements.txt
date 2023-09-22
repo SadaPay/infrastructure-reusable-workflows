@@ -1,0 +1,2 @@
+Requests==2.31.0
+requests_mock==1.11.0

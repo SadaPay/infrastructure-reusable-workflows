@@ -1,0 +1,28 @@
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Python environment
+venv/
+env/
+*.env
+
+# IDE-specific files
+idea/
+*.iml
+.idea_modules/
+out/
+
+# Editor/IDE settings
+*.DS_Store
+*.editorconfig
+*.sublime-project
+*.sublime-workspace
+
+# Logs and other generated files
+*.log
+*.log.*
+*.bak
+
+# Virtual Environment
+venv/
