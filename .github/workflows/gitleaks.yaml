@@ -1,0 +1,11 @@
+name: Secret Scanner
+
+on:
+  pull_request:
+  push:
+
+jobs:
+
+  call-workflow:
+    uses: SadaPay/infosec-testing/.github/workflows/gitleaks.yaml@main
+    secrets: inherit
